@@ -2,9 +2,9 @@
 #include <WiFi.h>
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
-#include <tr064.h>
 #include <driver/rtc_io.h>
 #include "esp-doorbell-config.h"
+#include "Sip.h"
 
 // The SSID of your WLAN
 const char* wifi_ssid = WIFI_SSID;
@@ -13,18 +13,19 @@ const char* wifi_password = WIFI_PASSWORD;
 // The network name of your ESP32
 const char* wifi_host = "doorbell";
 
-// The user for FritzBox
-const char* fritz_box_user = FRITZ_BOX_USER;
-//  The password associated with the FritzBox user above
-const char* fritz_box_password = FRITZ_BOX_PASSWORD;
-// The TR064 port of your FritzBox
-const int fritz_box_port = 49000;
-
+// The SIP user
+const char* sip_user = SIP_USER;
+//  The password associated with the SIP user above
+const char* sip_password = SIP_PASSWORD;
+// The SIP  port
+const int sip_port = 5060;
 
 // Number that the doorbell calls
-const char* ring_number = "**9";
-// Time that the doorbell rings (in ms)
-const int ring_time = 6000;
+const char* ring_number = "**1";
+// Time that the doorbell rings (in s)
+const int ring_time = 10;
+// The name that is displayed on the phones
+const char* ring_name = "Doorbell";
 
 // The WLAN configuration buffer
 RTC_DATA_ATTR byte wifi_mac[6] = {0, 0, 0, 0, 0, 0};
@@ -108,17 +109,11 @@ void setup() {
     wifi_buffered = 1;
   }
 
-  Serial.println("Connecting to the FritzBox");
-  TR064 connection(fritz_box_port, wifi_gateway, fritz_box_user, fritz_box_password);
-  connection.init();
-  
-  Serial.println("Ringing");
-  String params[][2] = {{"NewX_AVM-DE_PhoneNumber", ring_number}};
-  String req[][2] = {{}};
-  String params1[][2] = {{}};
-  connection.action("urn:dslforum-org:service:X_VoIP:1","X_AVM-DE_DialNumber", params, 1, req, 0);
-  delay(ring_time);
-  connection.action("urn:dslforum-org:service:X_VoIP:1","X_AVM-DE_DialHangup", params1, 1, req, 0);
+  Serial.println("Initiating the SIP call");
+  Sip sip_client;
+  sip_client.Init(wifi_gateway, sip_port, wifi_ip, sip_port, sip_user, sip_password, ring_time);
+  sip_client.Dial(ring_number, ring_name);
+  sip_client.Wait();
 
   Serial.println("ESP32 goes back to deep sleep");
   Serial.println("");

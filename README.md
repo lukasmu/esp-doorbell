@@ -1,17 +1,19 @@
 # Make a smart doorbell using the ESP32
 
-Take a look at the [Heise article](https://www.heise.de/select/ct/2018/17/1534215254552977) and the [Reichelt article](https://www.reichelt.de/magazin/how-to/smarte-tuerklingel/) to get started. 
+Take a look at the [Heise article](https://www.heise.de/select/ct/2018/17/1534215254552977) and the [Reichelt article](https://www.reichelt.de/magazin/how-to/smarte-tuerklingel/) to get started.  Additionally the [mikrocontroller.net thread](https://www.mikrocontroller.net/topic/442157) might be useful.
 These articles serve as foundation for this project. But of course there are some differences:
 - This project uses an ESP32 instead of an ESP8266.
 - This project does not reset the ESP32 every time someone rings the bell. Instead a GPIO pin is used for waking up the ESP32 from deep sleep.
-- The code is optimized for ease of use (it requires only minimal config) and performance (it buffers the WiFi settings so that connecting to the WiFi is fast).
+- This project does not make use of the TR-064 protocol but instead of the SIP protocol
+- The code is optimized for ease of use (it requires only minimal and non-sensitive config) and performance (it buffers the WiFi settings so that connecting to the WiFi is fast).
 
 ## Tips & Tricks
+
 Here are some information that might be handy:
+- In your router you only need to setup a new IP phone and obtain the credentials
 - Create the [esp-doorbell-config.h](esp-doorbell/esp-doorbell-config.h) file based on the [esp-doorbell-config.h.example](esp-doorbell/esp-doorbell-config.h.example) file and add your credentials in there.
 - Depending on the lenght of the wire to your door bell button you might want to use a different resistance/LED to esnure that the optocoupler works properly (especially if you only a low supply voltage).
 - Make sure to add the [ESP32 board manager](https://dl.espressif.com/dl/package_esp32_index.json) and install the [TR-064-SOAP-Library](https://github.com/Aypac/Arduino-TR-064-SOAP-Library) in the Arduino IDE.
-- For configuring your FritzBox check out the [Heise article](https://www.heise.de/select/ct/2018/17/1534215254552977).
 
 ## Changelog
 
