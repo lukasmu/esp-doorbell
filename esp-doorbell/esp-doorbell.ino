@@ -37,17 +37,22 @@ RTC_DATA_ATTR char wifi_dns[16];
 RTC_DATA_ATTR int wifi_buffered = 0; 
 
 // Function to put ESP32 into deep sleep
-void sleep(void) {
+void esp_sleep(void) {
+  Serial.println("Preparing deep sleep...");
   rtc_gpio_pullup_en(GPIO_NUM_33);
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33,0);
+  esp_sleep_enable_ext1_wakeup(GPIO_NUM_33, ESP_EXT1_WAKEUP_ALL_LOW);
+  esp_sleep_enable_timer_wakeup(21600000000); // 6 hours
+  Serial.println("Prepared deep sleep.");
+  
+  Serial.println("Going to deep sleep");
+  Serial.println("");
   esp_deep_sleep_start();
 }
 
-// Main process
-void setup() {
-  Serial.begin(115200);
-  Serial.println("ESP32 wakes up");
-  
+// Function to connect to WiFi
+void wifi_connect(void) {
+  Serial.println("Connecting to WiFi...");
+
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
 
@@ -61,8 +66,7 @@ void setup() {
     temp_dns.fromString(wifi_dns);
     WiFi.config(temp_ip, temp_gateway, temp_mask, temp_dns);
     WiFi.begin(wifi_ssid, wifi_password, wifi_channel, wifi_mac);
-  }
-  else {
+  } else {
     Serial.println("Did not find buffered WiFi config");
     Serial.println("Conneting to WiFi using SSID and password only");
     WiFi.begin(wifi_ssid, wifi_password);
@@ -89,16 +93,21 @@ void setup() {
       Serial.println("Aborting");
       WiFi.disconnect(true);
       delay(50);
-      Serial.println("ESP32 goes back to deep sleep");
+      Serial.println("Restarting");
       Serial.println("");
-      sleep();
+      ESP.restart();
     }
     delay(50);
     wifi_status = WiFi.status();
   }
 
-  if ( wifi_buffered == 0 ) {
-    Serial.println("Buffering WiFi config (to speedup next WiFi connection)");
+  Serial.println("Connected to WiFi.");
+}
+
+// Function to buffer WiFi config
+void wifi_buffer(void) {
+   if ( wifi_buffered == 0 ) {
+    Serial.println("Buffering WiFi config (to speedup next WiFi connection)...");
     uint8_t* bssid;
     bssid = WiFi.BSSID();
     for (uint32_t i = 0; i < sizeof(wifi_mac); i++) wifi_mac[i] = bssid[i];
@@ -107,17 +116,47 @@ void setup() {
     WiFi.subnetMask().toString().toCharArray(wifi_mask, 16);
     WiFi.dnsIP().toString().toCharArray(wifi_dns, 16);;
     wifi_buffered = 1;
+    Serial.println("Buffered WiFi config (to speedup next WiFi connection).");
   }
+}
 
-  Serial.println("Initiating the SIP call");
+// Function to initiate a SIP call
+void sip_init(void) {
+  Serial.println("Initiating the SIP call...");
   Sip sip_client;
   sip_client.Init(wifi_gateway, sip_port, wifi_ip, sip_port, sip_user, sip_password, ring_time);
   sip_client.Dial(ring_number, ring_name);
   sip_client.Wait();
+  Serial.println("Initiated the SIP call.");
+}
 
-  Serial.println("ESP32 goes back to deep sleep");
-  Serial.println("");
-  sleep();
+// Main process
+void setup() {
+  Serial.begin(115200);
+  Serial.println("ESP32 has woken up");
+
+  wifi_connect();
+
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+  if ( wakeup_reason == ESP_SLEEP_WAKEUP_EXT1 ) {
+    // Make sure that SIP call is only initiated if the ESP is woken up by pressing the right GPIO button
+    Serial.println("Waked-up source was EXT1");
+    int GPIO_reason = esp_sleep_get_ext1_wakeup_status();
+    int k=(int)(log(GPIO_reason)/log(2));
+    if ( k == 33 ) {
+      Serial.println("Waked-up source was GPIO 33");
+      sip_init();
+    }
+  } else if ( wakeup_reason == ESP_SLEEP_WAKEUP_TIMER ) {
+    // Make sure that the ESP is restarted incidentially (to avoid connection issues)
+    Serial.println("Waked-up source was TIMER");
+    Serial.println("Going to restart ESP");
+    ESP.restart();
+  }
+
+  wifi_buffer();
+  
+  esp_sleep();
 }
 
 // We will never enter the loop as we are always going to deep sleep in the setup method
