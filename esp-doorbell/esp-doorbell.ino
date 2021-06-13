@@ -39,11 +39,13 @@ RTC_DATA_ATTR int wifi_buffered = 0;
 // Function to put ESP32 into deep sleep
 void esp_sleep(void) {
   Serial.println("Preparing deep sleep...");
-  rtc_gpio_pullup_en(GPIO_NUM_33);
-  esp_sleep_enable_ext1_wakeup(GPIO_NUM_33, ESP_EXT1_WAKEUP_ALL_LOW);
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+  gpio_pullup_en(GPIO_NUM_33);
+  const uint64_t mask = 1ULL << 33;
+  esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ALL_LOW);
   esp_sleep_enable_timer_wakeup(21600000000); // 6 hours
   Serial.println("Prepared deep sleep.");
-  
+ 
   Serial.println("Going to deep sleep");
   Serial.println("");
   esp_deep_sleep_start();
@@ -139,14 +141,9 @@ void setup() {
 
   esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
   if ( wakeup_reason == ESP_SLEEP_WAKEUP_EXT1 ) {
-    // Make sure that SIP call is only initiated if the ESP is woken up by pressing the right GPIO button
+    // Make sure that SIP call is only initiated if the ESP is woken up by pressing the GPIO button
     Serial.println("Waked-up source was EXT1");
-    int GPIO_reason = esp_sleep_get_ext1_wakeup_status();
-    int k=(int)(log(GPIO_reason)/log(2));
-    if ( k == 33 ) {
-      Serial.println("Waked-up source was GPIO 33");
-      sip_init();
-    }
+    sip_init();
   } else if ( wakeup_reason == ESP_SLEEP_WAKEUP_TIMER ) {
     // Make sure that the ESP is restarted incidentially (to avoid connection issues)
     Serial.println("Waked-up source was TIMER");
